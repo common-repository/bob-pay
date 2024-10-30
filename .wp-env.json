@@ -1,0 +1,12 @@
+{
+  "plugins": [
+    ".",
+    "https://downloads.wordpress.org/plugin/woocommerce.8.5.1.zip"
+  ],
+  "config": {
+    "BOBPAY_LOCAL_DEV": "true",
+    "WP_DEBUG": "true",
+    "NGROK_TUNNEL_URL": "https://d014-196-210-25-77.ngrok-free.app"
+  },
+  "phpVersion": "8.2"
+}

@@ -1,0 +1,66 @@
+image: shiplogic/ci-wp-plugin:latest
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - deploy
+  - dev
+
+#======================================================================
+#                      Deploy Bob Pay plugin to svn
+#======================================================================
+
+deploy-plugin:
+  stage: deploy
+  image:
+    name: "shiplogic/ci-wp-plugin:latest"
+  only:
+    - tags
+  before_script:
+    - npm i
+    - npm run build
+    - mkdir ./bin
+    - curl -o ./bin/deploy.sh https://git-cdn.e15r.co/open-source/wp-org-plugin-deploy/raw/master/scripts/deploy.sh
+    - chmod +x ./bin/deploy.sh
+    - |
+      sed -i -e '/Preparing files/a\
+      rsync -r "${CI_PROJECT_DIR}/build" trunk/' \
+      ./bin/deploy.sh
+  script:
+    - ./bin/deploy.sh
+  when: on_success
+  allow_failure: false
+
+#======================================================================
+#            Deploy Bob Pay woocommerce plugin to dev                  
+#======================================================================
+
+image: shiplogic/ci-wp-plugin:dev
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+dev:
+  stage: dev
+  only:
+    - dev
+  before_script:
+  # This should be set as a variable in gitlab https://gitlab.bob.co.za/bobpay/bobpay-woocommerce-plugin/-/settings/ci_cd
+  # First get the correct key using current branch test_AWS_ACCESS_KEY_ID
+  # Then expand the variable using eval
+    - AWS_ACCESS_KEY_ID_KEY=$(echo "$CI_COMMIT_BRANCH"_"WORDPRESS_S3_ACCESS_KEY_ID")
+    - AWS_SECRET_ACCESS_KEY_KEY=$(echo "$CI_COMMIT_BRANCH"_"WORDPRESS_S3_SECRET_ACCESS_KEY")
+    - AWS_ACCESS_KEY_ID=$(eval echo -e "\$$AWS_ACCESS_KEY_ID_KEY")
+    - AWS_SECRET_ACCESS_KEY=$(eval echo -e "\$$AWS_SECRET_ACCESS_KEY_KEY")
+    - export AWS_ACCESS_KEY_ID
+    - export AWS_SECRET_ACCESS_KEY
+  # Clone the bobpay-woocommerce-plugin repository
+    - npm install
+  # Zip the build files
+    - npm run build
+  script:
+  # Upload the zip file to s3://bobpay-s3-wordpress-plugin/
+    - aws s3 cp bobpay-plugin.zip s3://bobpay-s3-wordpress-plugin/ --region=af-south-1
+  when: on_success
+  allow_failure: false
